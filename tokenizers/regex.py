@@ -10,6 +10,7 @@ Unlike BasicTokenizer:
 """
 
 import regex as re
+from tqmd import tqdm
 from .base import Tokenizer, get_stats, merge
 
 
@@ -46,7 +47,7 @@ class RegexTokenizer(Tokenizer):
         # iteratively merge the most common pairs to create new tokens
         merges = {} # (int, int) -> int
         vocab = {idx: bytes([idx]) for idx in range(256)} # idx -> bytes
-        for i in range(num_merges):
+        for i in tqdm(range(num_merges)):
             # count the number of times every consecutive pair appears
             stats = {}
             for chunk_ids in ids:
@@ -68,6 +69,64 @@ class RegexTokenizer(Tokenizer):
         # save class variables
         self.merges = merges # used in encode()
         self.vocab = vocab   # used in decode()
+
+
+    def train_dataset(self, dataset, vocab_size, chunk_size=100000, verbose=False):
+        """ Train on hub dataset by splitting to chunks """
+        assert vocab_size >= 256
+        num_merges = vocab_size - 256
+
+        def iterate_dataset_chunks(dataset, chunk_size):
+            """ Generator to yield text chunks from the dataset """
+            text_chunk = []
+            for sample in dataset:
+                text_chunk.append(sample['text'])
+                if len(text_chunk) >= chunk_size:
+                    yield " ".join(text_chunk)
+                    text_chunk = []
+            if text_chunk:
+                yield " ".join(text_chunk)
+
+        ids = []
+        if verbose:
+            print(f"Getting ids of text chunks")
+        for data_chunk in iterate_dataset_chunks(dataset, chunk_size):
+            text_chunks = re.findall(self.compiled_pattern, data_chunk)
+            chunk_ids = [list(ch.encode("utf-8")) for ch in text_chunks]
+            ids.extend(chunk_ids)
+
+        # Initialize vocab and merges
+        merges = {}
+        vocab = {idx: bytes([idx]) for idx in range(256)}
+        if verbose:
+            print(f"Merging Ids!")
+        # Iteratively merge the most common pairs to create new tokens
+        for i in tqdm(range(num_merges)):
+            # Calculate frequency stats for current ids
+            stats = Counter()
+            for chunk_ids in ids:
+                get_stats(chunk_ids, stats)
+
+            # Find the pair with the highest count
+            if not stats:
+                break  # No more pairs to merge
+            pair = max(stats, key=stats.get)
+            
+            # Mint a new token: assign it the next available id
+            idx = 256 + i
+            merges[pair] = idx
+            vocab[idx] = vocab[pair[0]] + vocab[pair[1]]
+            
+            # Replace all occurrences of pair in ids with new id
+            ids = [merge(chunk_ids, pair, idx) for chunk_ids in ids]
+
+            if verbose:
+                print(f"merge {i+1}/{num_merges}: {pair} -> {idx} ({vocab[idx]}) had {stats[pair]} occurrences")
+
+        # Save to tokenizer attributes
+        self.merges = merges
+        self.vocab = vocab
+
 
     def register_special_tokens(self, special_tokens):
         # special_tokens is a dictionary of str -> int
