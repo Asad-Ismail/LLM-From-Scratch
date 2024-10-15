@@ -53,6 +53,11 @@ class RegexTokenizer(Tokenizer):
             for chunk_ids in ids:
                 # passing in stats will update it in place, adding up counts
                 get_stats(chunk_ids, stats)
+                
+            # No more pairs to merge
+            if not stats:
+                print(f"No more merging possible achieved end of text!!")
+                break  # No more pairs to merge
             # find the pair with the highest count
             pair = max(stats, key=stats.get)
             # mint a new token: assign it the next available id
@@ -90,7 +95,9 @@ class RegexTokenizer(Tokenizer):
         ids = []
         if verbose:
             print(f"Getting ids of text chunks")
+        print(f"kkk")
         for data_chunk in iterate_dataset_chunks(dataset, chunk_size):
+            print(f"Data chunk is {data_chunk}")
             text_chunks = re.findall(self.compiled_pattern, data_chunk)
             chunk_ids = [list(ch.encode("utf-8")) for ch in text_chunks]
             ids.extend(chunk_ids)
@@ -107,9 +114,12 @@ class RegexTokenizer(Tokenizer):
             for chunk_ids in ids:
                 get_stats(chunk_ids, stats)
 
-            # Find the pair with the highest count
+            # No more pairs to merge
             if not stats:
-                break  # No more pairs to merge
+                print(f"No more merging possible achieved end of text!!")
+                break  
+
+            # Find the pair with the highest count
             pair = max(stats, key=stats.get)
             
             # Mint a new token: assign it the next available id
