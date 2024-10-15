@@ -10,7 +10,7 @@ Unlike BasicTokenizer:
 """
 
 import regex as re
-from tqmd import tqdm
+from tqdm import tqdm
 from .base import Tokenizer, get_stats, merge
 
 
