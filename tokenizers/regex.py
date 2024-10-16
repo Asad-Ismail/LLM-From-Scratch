@@ -11,6 +11,7 @@ Unlike BasicTokenizer:
 
 import regex as re
 from tqdm import tqdm
+from collections import Counter
 from .base import Tokenizer, get_stats, merge
 
 
@@ -53,7 +54,7 @@ class RegexTokenizer(Tokenizer):
             for chunk_ids in ids:
                 # passing in stats will update it in place, adding up counts
                 get_stats(chunk_ids, stats)
-                
+
             # No more pairs to merge
             if not stats:
                 print(f"No more merging possible achieved end of text!!")
@@ -95,9 +96,8 @@ class RegexTokenizer(Tokenizer):
         ids = []
         if verbose:
             print(f"Getting ids of text chunks")
-        print(f"kkk")
         for data_chunk in iterate_dataset_chunks(dataset, chunk_size):
-            print(f"Data chunk is {data_chunk}")
+            print(f"Data chunk is ---> {data_chunk} <------")
             text_chunks = re.findall(self.compiled_pattern, data_chunk)
             chunk_ids = [list(ch.encode("utf-8")) for ch in text_chunks]
             ids.extend(chunk_ids)
@@ -106,7 +106,7 @@ class RegexTokenizer(Tokenizer):
         merges = {}
         vocab = {idx: bytes([idx]) for idx in range(256)}
         if verbose:
-            print(f"Merging Ids!")
+            print(f"Merging IDs!")
         # Iteratively merge the most common pairs to create new tokens
         for i in tqdm(range(num_merges)):
             # Calculate frequency stats for current ids
